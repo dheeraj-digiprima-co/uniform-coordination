@@ -28,7 +28,7 @@ services:
 
   backend:
 
-    image: ghcr.io/YOUR_GITHUB_USERNAME/uniform-backend:latest
+    image: ghcr.io/dheeraj-digiprima-co/uniform-backend:latest
 
     container_name: uniform-backend
 
