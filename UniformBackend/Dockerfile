@@ -25,4 +25,4 @@ RUN mkdir -p /app/staticfiles
 
 EXPOSE 8005
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8005", "--workers", "3", "uniformweb.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8005", "--workers", "3", "UniformWeb.wsgi:application"]
