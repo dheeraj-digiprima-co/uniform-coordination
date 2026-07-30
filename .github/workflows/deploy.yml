@@ -57,7 +57,7 @@ jobs:
 
           script: |
 
-            cd /var/www/uniform-coordination
+            cd /home/digiprima/uniform-coordination
 
             git fetch origin
             git reset --hard origin/main
