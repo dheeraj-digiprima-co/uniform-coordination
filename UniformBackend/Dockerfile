@@ -1,24 +1,28 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     default-libmysqlclient-dev \
     default-mysql-client \
     pkg-config \
- && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install gunicorn
 
 COPY . .
 
+RUN mkdir -p /app/staticfiles
+
 EXPOSE 8005
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8005"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8005", "--workers", "3", "uniformweb.wsgi:application"]
