@@ -12,7 +12,7 @@ RUN apk add --no-cache libc6-compat
 
 COPY package*.json ./
 
-RUN npm ci
+RUN npm install --legacy-peer-deps
 
 ############################################
 # Stage 2 - Build Application
