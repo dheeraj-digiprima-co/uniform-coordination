@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - "backend/**"
-      - ".github/workflows/backend.yml"
+      - ".github/workflows/backend-deploy.yml"
 
 env:
   REGISTRY: ghcr.io
