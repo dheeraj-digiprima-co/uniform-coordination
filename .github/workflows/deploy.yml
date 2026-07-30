@@ -1,0 +1,170 @@
+name: Monorepo Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+
+    outputs:
+      admin_kireiz: ${{ steps.filter.outputs.admin_kireiz }}
+      admin_table: ${{ steps.filter.outputs.admin_table }}
+      table_kireiz: ${{ steps.filter.outputs.table_kireiz }}
+      uniform_kireiz: ${{ steps.filter.outputs.uniform_kireiz }}
+      uniform_backend: ${{ steps.filter.outputs.uniform_backend }}
+      table_backend: ${{ steps.filter.outputs.table_backend }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            admin_kireiz:
+              - 'admin-kireiz-coordination/**'
+
+            admin_table:
+              - 'admin-table-coordination/**'
+
+            table_kireiz:
+              - 'table-kireiz-coordination/**'
+
+            uniform_kireiz:
+              - 'uniform-kireiz-coordination/**'
+
+            uniform_backend:
+              - 'UniformBackend/**'
+
+            table_backend:
+              - 'table-backend/**'
+
+  deploy:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+
+          script: |
+
+            cd /var/www/uniform-coordination
+
+            git fetch origin
+            git reset --hard origin/main
+
+            #############################
+            # Admin Kireiz
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.admin_kireiz }}" = "true" ]; then
+
+              cd admin-kireiz-coordination
+
+              npm ci
+              npm run build
+
+              pm2 reload ecosystem.config.js --update-env
+
+              cd ..
+
+            fi
+
+            #############################
+            # Admin Table
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.admin_table }}" = "true" ]; then
+
+              cd admin-table-coordination
+
+              npm ci
+              npm run build
+
+              pm2 reload ecosystem.config.js --update-env
+
+              cd ..
+
+            fi
+
+            #############################
+            # Table Kireiz
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.table_kireiz }}" = "true" ]; then
+
+              cd table-kireiz-coordination
+
+              npm ci
+              npm run build
+
+              pm2 reload ecosystem.config.js --update-env
+
+              cd ..
+
+            fi
+
+            #############################
+            # Uniform Kireiz
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.uniform_kireiz }}" = "true" ]; then
+
+              cd uniform-kireiz-coordination
+
+              npm ci
+              npm run build
+
+              pm2 reload ecosystem.config.js --update-env
+
+              cd ..
+
+            fi
+
+            #############################
+            # Uniform Backend
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.uniform_backend }}" = "true" ]; then
+
+              cd UniformBackend
+
+              docker compose pull
+              docker compose up -d --build
+
+              cd ..
+
+            fi
+
+            #############################
+            # Table Backend
+            #############################
+
+            if [ "${{ needs.detect-changes.outputs.table_backend }}" = "true" ]; then
+
+              cd table-backend
+
+              source venv/bin/activate
+
+              pip install -r requirements.txt
+
+              python manage.py migrate
+
+              python manage.py collectstatic --noinput
+
+              sudo systemctl restart gunicorn-table-backend
+
+              deactivate
+
+              cd ..
+
+            fi
