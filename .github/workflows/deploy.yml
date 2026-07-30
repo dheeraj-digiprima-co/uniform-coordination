@@ -1,4 +1,4 @@
-name: Monorepo Deployment 
+name: Deploy to Ubuntu Server
 
 on:
   push:
@@ -6,165 +6,46 @@ on:
       - master
 
 jobs:
-  detect-changes:
-    runs-on: ubuntu-latest
-
-    outputs:
-      admin_kireiz: ${{ steps.filter.outputs.admin_kireiz }}
-      admin_table: ${{ steps.filter.outputs.admin_table }}
-      table_kireiz: ${{ steps.filter.outputs.table_kireiz }}
-      uniform_kireiz: ${{ steps.filter.outputs.uniform_kireiz }}
-      uniform_backend: ${{ steps.filter.outputs.uniform_backend }}
-      table_backend: ${{ steps.filter.outputs.table_backend }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            admin_kireiz:
-              - 'admin-kireiz-coordination/**'
-
-            admin_table:
-              - 'admin-table-coordination/**'
-
-            table_kireiz:
-              - 'table-kireiz-coordination/**'
-
-            uniform_kireiz:
-              - 'uniform-kireiz-coordination/**'
-
-            uniform_backend:
-              - 'UniformBackend/**'
-
-            table_backend:
-              - 'table-backend/**'
-
   deploy:
-    needs: detect-changes
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Deploy
+      - name: Copy Project to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "."
+          target: "/home/${{ secrets.SERVER_USER }}/next-app"
+
+      - name: Deploy Application
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-
+          port: ${{ secrets.SERVER_PORT }}
           script: |
+            cd /home/${{ secrets.SERVER_USER }}/next-app
 
-            cd /home/digiprima/uniform-coordination
+            # Build latest image
+            docker build -t next-app:latest .
 
-            git fetch origin
-            git reset --hard origin/main
+            # Stop old container if running
+            docker stop next-app || true
+            docker rm next-app || true
 
-            #############################
-            # Admin Kireiz
-            #############################
+            # Start new container
+            docker run -d \
+              --name next-app \
+              --restart unless-stopped \
+              -p 7002:7002 \
+              next-app:latest
 
-            if [ "${{ needs.detect-changes.outputs.admin_kireiz }}" = "true" ]; then
-
-              cd admin-kireiz-coordination
-
-              npm ci
-              npm run build
-
-              pm2 reload ecosystem.config.js --update-env
-
-              cd ..
-
-            fi
-
-            #############################
-            # Admin Table
-            #############################
-
-            if [ "${{ needs.detect-changes.outputs.admin_table }}" = "true" ]; then
-
-              cd admin-table-coordination
-
-              npm ci
-              npm run build
-
-              pm2 reload ecosystem.config.js --update-env
-
-              cd ..
-
-            fi
-
-            #############################
-            # Table Kireiz
-            #############################
-
-            if [ "${{ needs.detect-changes.outputs.table_kireiz }}" = "true" ]; then
-
-              cd table-kireiz-coordination
-
-              npm ci
-              npm run build
-
-              pm2 reload ecosystem.config.js --update-env
-
-              cd ..
-
-            fi
-
-            #############################
-            # Uniform Kireiz
-            #############################
-
-            if [ "${{ needs.detect-changes.outputs.uniform_kireiz }}" = "true" ]; then
-
-              cd uniform-kireiz-coordination
-
-              npm ci
-              npm run build
-
-              pm2 reload ecosystem.config.js --update-env
-
-              cd ..
-
-            fi
-
-            #############################
-            # Uniform Backend
-            #############################
-
-            if [ "${{ needs.detect-changes.outputs.uniform_backend }}" = "true" ]; then
-
-              cd UniformBackend
-
-              docker compose pull
-              docker compose up -d --build
-
-              cd ..
-
-            fi
-
-            #############################
-            # Table Backend
-            #############################
-
-            if [ "${{ needs.detect-changes.outputs.table_backend }}" = "true" ]; then
-
-              cd table-backend
-
-              source venv/bin/activate
-
-              pip install -r requirements.txt
-
-              python manage.py migrate
-
-              python manage.py collectstatic --noinput
-
-              sudo systemctl restart gunicorn-table-backend
-
-              deactivate
-
-              cd ..
-
-            fi
+            # Remove dangling images
+            docker image prune -f
