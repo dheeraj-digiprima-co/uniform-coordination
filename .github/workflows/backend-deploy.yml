@@ -5,7 +5,7 @@ on:
     branches:
       - master
     paths:
-      - "backend/**"
+      - " UniformBackend/**"
       - ".github/workflows/backend-deploy.yml"
 
 env:
@@ -22,7 +22,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: backend
+        working-directory:  UniformBackend
 
     steps:
       - name: Checkout Repository
