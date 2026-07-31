@@ -1,24 +1,20 @@
 version: "3.9"
 
 services:
-
   mysql:
     image: mysql:8.0
     container_name: uniform-mysql
-
     restart: unless-stopped
 
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
 
     volumes:
       - mysql_data:/var/lib/mysql
 
     healthcheck:
-      test: ["CMD","mysqladmin","ping","-h","localhost","-uroot","-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -27,11 +23,11 @@ services:
       - uniform-network
 
   backend:
-
-    image: ghcr.io/dheeraj-digiprima-co/uniform-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
 
     container_name: uniform-backend
-
     restart: unless-stopped
 
     depends_on:
@@ -48,11 +44,8 @@ services:
       - uniform-network
 
   adminer:
-
     image: adminer:latest
-
     container_name: uniform-adminer
-
     restart: unless-stopped
 
     depends_on:
@@ -69,9 +62,7 @@ services:
       - uniform-network
 
 volumes:
-
   mysql_data:
 
 networks:
-
   uniform-network:
